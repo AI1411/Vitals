@@ -68,8 +68,7 @@ pub fn main() !void {
             const usage_snap = snapshot.calcUsage(snap1, snap2, @floatFromInt(interval_sec));
 
             if (json_output) {
-                // TODO: JSON 出力は P4-9 で実装
-                try stdout.print("{{\"mode\":\"{s}\"}}\n", .{@tagName(mode)});
+                try once_render.renderJson(stdout, snap2, usage_snap);
             } else {
                 switch (mode) {
                     .once => try once_render.render(stdout, snap2, usage_snap),
