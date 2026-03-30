@@ -6,15 +6,18 @@ const std = @import("std");
 pub const MemInfo = struct {
     mem_total: u64 = 0,
     mem_free: u64 = 0,
-    mem_available: u64 = 0,
+    /// MemAvailable は古いカーネルで欠落しうるため optional
+    mem_available: ?u64 = null,
     buffers: u64 = 0,
     cached: u64 = 0,
     swap_total: u64 = 0,
     swap_free: u64 = 0,
 
     /// Used = Total - Available
+    /// MemAvailable が欠落している場合は MemFree + Buffers + Cached でフォールバック
     pub fn memUsed(self: MemInfo) u64 {
-        return self.mem_total -| self.mem_available;
+        const available = self.mem_available orelse (self.mem_free + self.buffers + self.cached);
+        return self.mem_total -| available;
     }
 
     /// Swap Used = SwapTotal - SwapFree
