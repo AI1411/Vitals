@@ -37,11 +37,20 @@ pub fn build(b: *std.Build) void {
     });
     test_step.dependOn(&b.addRunArtifact(src_tests).step);
 
+    const cpu_mod = b.createModule(.{
+        .root_source_file = b.path("src/collector/cpu.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+
     const cpu_tests = b.addTest(.{
         .root_module = b.createModule(.{
             .root_source_file = b.path("tests/cpu_test.zig"),
             .target = target,
             .optimize = optimize,
+            .imports = &.{
+                .{ .name = "cpu", .module = cpu_mod },
+            },
         }),
     });
     test_step.dependOn(&b.addRunArtifact(cpu_tests).step);
