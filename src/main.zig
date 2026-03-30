@@ -2,6 +2,7 @@ const std = @import("std");
 const snapshot = @import("collector/snapshot.zig");
 const once_render = @import("render/once.zig");
 const mini_render = @import("render/mini.zig");
+const watch_render = @import("render/watch.zig");
 const proc_reader = @import("utils/proc_reader.zig");
 
 const Mode = enum { dashboard, once, mini, watch };
@@ -82,8 +83,7 @@ pub fn main() !void {
             try stdout.print("vitals dashboard (not yet implemented)\n", .{});
         },
         .watch => {
-            // TODO: P4 ウォッチモード TUI を実装
-            try stdout.print("vitals watch (not yet implemented)\n", .{});
+            try watch_render.run(interval_sec);
         },
     }
 }
