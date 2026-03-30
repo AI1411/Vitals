@@ -1,6 +1,7 @@
-// /proc/net/dev パーサー
+// /proc/net/dev パーサー (Linux) / getifaddrs (macOS)
 
 const std = @import("std");
+const builtin = @import("builtin");
 
 pub const MAX_IFACES = 32;
 /// インターフェース名の最大長
@@ -70,6 +71,54 @@ pub fn parseNetLine(line: []const u8) ?NetIfStat {
     stat.name_len = raw_name.len;
 
     return stat;
+}
+
+/// macOS: getifaddrs() で AF_LINK エントリを走査し NetSnapshot を返す。
+/// ifa_data が指す if_data から ifi_ibytes / ifi_obytes を読み取る。
+pub fn collectMacos() NetSnapshot {
+    const sys = @import("../utils/macos_sys.zig");
+    var snapshot = NetSnapshot{};
+
+    var ifap: *sys.Ifaddrs = undefined;
+    if (sys.getifaddrs(&ifap) != 0) return snapshot;
+    defer sys.freeifaddrs(ifap);
+
+    var ifa: ?*sys.Ifaddrs = ifap;
+    while (ifa) |iface| : (ifa = iface.ifa_next) {
+        // ifa_addr が null の場合はスキップ
+        const addr_ptr = iface.ifa_addr orelse continue;
+
+        // sa_family は macOS では sa_len(u8)@0, sa_family(u8)@1
+        const sa_bytes: [*]const u8 = @ptrCast(addr_ptr);
+        const sa_family = sa_bytes[1];
+        if (sa_family != sys.AF_LINK) continue;
+
+        // ifa_data が null の場合はスキップ
+        const data_ptr = iface.ifa_data orelse continue;
+        const if_data: *const sys.IfData = @ptrCast(@alignCast(data_ptr));
+
+        // インターフェース名
+        const name_ptr = iface.ifa_name orelse continue;
+        const raw_name = std.mem.sliceTo(name_ptr, 0);
+        if (raw_name.len == 0 or raw_name.len >= IFNAME_MAX) continue;
+
+        if (snapshot.count >= MAX_IFACES) {
+            snapshot.truncated = true;
+            break;
+        }
+
+        var stat = NetIfStat{
+            .rx_bytes = if_data.ifi_ibytes,
+            .tx_bytes = if_data.ifi_obytes,
+        };
+        @memcpy(stat.name[0..raw_name.len], raw_name);
+        stat.name_len = raw_name.len;
+
+        snapshot.ifaces[snapshot.count] = stat;
+        snapshot.count += 1;
+    }
+
+    return snapshot;
 }
 
 /// /proc/net/dev の内容をパースして NetSnapshot を返す。

@@ -37,10 +37,19 @@ pub fn build(b: *std.Build) void {
     });
     test_step.dependOn(&b.addRunArtifact(src_tests).step);
 
+    const macos_sys_mod = b.createModule(.{
+        .root_source_file = b.path("src/utils/macos_sys.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+
     const cpu_mod = b.createModule(.{
         .root_source_file = b.path("src/collector/cpu.zig"),
         .target = target,
         .optimize = optimize,
+        .imports = &.{
+            .{ .name = "../utils/macos_sys.zig", .module = macos_sys_mod },
+        },
     });
 
     const cpu_tests = b.addTest(.{
@@ -59,6 +68,9 @@ pub fn build(b: *std.Build) void {
         .root_source_file = b.path("src/collector/memory.zig"),
         .target = target,
         .optimize = optimize,
+        .imports = &.{
+            .{ .name = "../utils/macos_sys.zig", .module = macos_sys_mod },
+        },
     });
 
     const memory_tests = b.addTest(.{
@@ -77,6 +89,9 @@ pub fn build(b: *std.Build) void {
         .root_source_file = b.path("src/collector/disk.zig"),
         .target = target,
         .optimize = optimize,
+        .imports = &.{
+            .{ .name = "../utils/macos_sys.zig", .module = macos_sys_mod },
+        },
     });
 
     const disk_tests = b.addTest(.{
@@ -95,6 +110,9 @@ pub fn build(b: *std.Build) void {
         .root_source_file = b.path("src/collector/network.zig"),
         .target = target,
         .optimize = optimize,
+        .imports = &.{
+            .{ .name = "../utils/macos_sys.zig", .module = macos_sys_mod },
+        },
     });
 
     const network_tests = b.addTest(.{
@@ -113,6 +131,9 @@ pub fn build(b: *std.Build) void {
         .root_source_file = b.path("src/collector/loadavg.zig"),
         .target = target,
         .optimize = optimize,
+        .imports = &.{
+            .{ .name = "../utils/macos_sys.zig", .module = macos_sys_mod },
+        },
     });
 
     const loadavg_tests = b.addTest(.{

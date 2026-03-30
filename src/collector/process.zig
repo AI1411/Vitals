@@ -1,6 +1,7 @@
-// Top N プロセス収集
+// Top N プロセス収集 (Linux: /proc 走査, macOS: スタブ)
 
 const std = @import("std");
+const builtin = @import("builtin");
 const proc_reader = @import("../utils/proc_reader.zig");
 
 /// CPU 上位プロセスの最大取得数
@@ -104,7 +105,14 @@ fn prevTicksForPid(prev: *const ProcessSnapshot, pid: u32) ?u64 {
 /// /proc 以下を走査して CPU 上位 TOP_N プロセスのスナップショットを返す。
 /// prev は前回のスナップショット（null の場合は CPU% = 0.0）。
 /// buf は一時読み取りバッファ（proc_reader.PROC_BUF_SIZE 以上推奨）。
+/// macOS では /proc が存在しないため空のスナップショットを返す。
 pub fn collect(prev: ?*const ProcessSnapshot, buf: []u8) ProcessSnapshot {
+    if (comptime builtin.os.tag == .macos) {
+        var snap = ProcessSnapshot{};
+        snap.timestamp_ns = std.time.nanoTimestamp();
+        return snap;
+    }
+
     var snap = ProcessSnapshot{};
     snap.timestamp_ns = std.time.nanoTimestamp();
 

@@ -1,6 +1,7 @@
-// /proc/loadavg パーサー
+// /proc/loadavg パーサー (Linux) / getloadavg (macOS)
 
 const std = @import("std");
+const builtin = @import("builtin");
 
 /// /proc/loadavg から取得したロードアベレージ情報
 pub const LoadAvg = struct {
@@ -17,6 +18,20 @@ pub const LoadAvg = struct {
     /// 最後に作成されたプロセスのPID
     last_pid: u32 = 0,
 };
+
+/// macOS: getloadavg(3) からロードアベレージを取得する。
+/// running / total / last_pid は macOS では取得不可のため 0 のまま。
+pub fn collectMacos() LoadAvg {
+    const sys = @import("../utils/macos_sys.zig");
+    var avgs: [3]f64 = .{ 0.0, 0.0, 0.0 };
+    const ret = sys.getloadavg(@as([*]f64, &avgs), 3);
+    if (ret < 0) return LoadAvg{};
+    return LoadAvg{
+        .load1 = avgs[0],
+        .load5 = avgs[1],
+        .load15 = avgs[2],
+    };
+}
 
 /// /proc/loadavg の内容をパースして LoadAvg を返す。
 /// フォーマット: "1m 5m 15m running/total last_pid\n"

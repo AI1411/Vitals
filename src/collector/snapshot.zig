@@ -1,6 +1,7 @@
 // 全メトリクスの1時点構造体
 
 const std = @import("std");
+const builtin = @import("builtin");
 const cpu_mod = @import("cpu.zig");
 const memory_mod = @import("memory.zig");
 const disk_mod = @import("disk.zig");
@@ -43,32 +44,42 @@ pub const UsageSnapshot = struct {
     net_count: usize = 0,
 };
 
-/// /proc 以下の各ファイルを読み取り、現在の Snapshot を返す。
-/// buf は proc_reader.PROC_BUF_SIZE (64 KB) 以上を推奨。
-/// 各ファイルの読み取りに失敗した場合はそのフィールドをゼロ値のままにする。
+/// 現在の Snapshot を返す。
+/// macOS では sysctl / mach API を使用する。
+/// Linux では /proc 以下の各ファイルを読み取る。
+/// buf は Linux 専用 (proc_reader.PROC_BUF_SIZE = 64 KB 以上推奨)。
 pub fn collect(buf: []u8) Snapshot {
     var snap = Snapshot{};
     snap.timestamp_ns = std.time.nanoTimestamp();
 
-    if (proc_reader.read("/proc/stat", buf)) |content| {
-        snap.cpu = cpu_mod.parseSnapshot(content);
-    } else |_| {}
+    if (comptime builtin.os.tag == .macos) {
+        snap.cpu = cpu_mod.collectMacos();
+        snap.mem = memory_mod.collectMacos();
+        snap.disk = disk_mod.collectMacos();
+        snap.net = network_mod.collectMacos();
+        snap.load = loadavg_mod.collectMacos();
+    } else {
+        // Linux: /proc 以下を読み取る
+        if (proc_reader.read("/proc/stat", buf)) |content| {
+            snap.cpu = cpu_mod.parseSnapshot(content);
+        } else |_| {}
 
-    if (proc_reader.read("/proc/meminfo", buf)) |content| {
-        snap.mem = memory_mod.parseSnapshot(content);
-    } else |_| {}
+        if (proc_reader.read("/proc/meminfo", buf)) |content| {
+            snap.mem = memory_mod.parseSnapshot(content);
+        } else |_| {}
 
-    if (proc_reader.read("/proc/mounts", buf)) |content| {
-        snap.disk = disk_mod.collect(content);
-    } else |_| {}
+        if (proc_reader.read("/proc/mounts", buf)) |content| {
+            snap.disk = disk_mod.collect(content);
+        } else |_| {}
 
-    if (proc_reader.read("/proc/net/dev", buf)) |content| {
-        snap.net = network_mod.parseSnapshot(content);
-    } else |_| {}
+        if (proc_reader.read("/proc/net/dev", buf)) |content| {
+            snap.net = network_mod.parseSnapshot(content);
+        } else |_| {}
 
-    if (proc_reader.read("/proc/loadavg", buf)) |content| {
-        snap.load = loadavg_mod.parseSnapshot(content) orelse .{};
-    } else |_| {}
+        if (proc_reader.read("/proc/loadavg", buf)) |content| {
+            snap.load = loadavg_mod.parseSnapshot(content) orelse .{};
+        } else |_| {}
+    }
 
     return snap;
 }
