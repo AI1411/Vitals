@@ -49,6 +49,44 @@ test "parseMountsLine: デバイスのみの行は null を返す" {
     try testing.expectEqual(@as(?[]const u8, null), disk.parseMountsLine("singletoken"));
 }
 
+// --- decodeMountPath ---
+
+test "decodeMountPath: エスケープなしのパスはそのまま返す" {
+    var buf: [256]u8 = undefined;
+    const result = disk.decodeMountPath("/boot", &buf);
+    try testing.expectEqualStrings("/boot", result);
+}
+
+test "decodeMountPath: スペース (\\040) をデコード" {
+    var buf: [256]u8 = undefined;
+    const result = disk.decodeMountPath("/media/My\\040Disk", &buf);
+    try testing.expectEqualStrings("/media/My Disk", result);
+}
+
+test "decodeMountPath: 複数エスケープをデコード" {
+    var buf: [256]u8 = undefined;
+    const result = disk.decodeMountPath("/media/a\\040b\\040c", &buf);
+    try testing.expectEqualStrings("/media/a b c", result);
+}
+
+test "decodeMountPath: バックスラッシュ (\\134) をデコード" {
+    var buf: [256]u8 = undefined;
+    const result = disk.decodeMountPath("/mnt/share\\134path", &buf);
+    try testing.expectEqualStrings("/mnt/share\\path", result);
+}
+
+test "decodeMountPath: 不完全なエスケープはリテラルとして扱う" {
+    var buf: [256]u8 = undefined;
+    // 末尾が \04 (3桁に満たない) → そのまま
+    const result = disk.decodeMountPath("/mnt/\\04", &buf);
+    try testing.expectEqualStrings("/mnt/\\04", result);
+}
+
+test "parseMountsLine: スペースを含むエンコード済みパスを raw のまま返す" {
+    const raw = disk.parseMountsLine("/dev/sdb1 /media/My\\040Disk vfat rw 0 0") orelse return error.ParseFailed;
+    try testing.expectEqualStrings("/media/My\\040Disk", raw);
+}
+
 // --- DiskStat ヘルパー ---
 
 test "DiskStat.totalBytes: block_size * total_blocks" {

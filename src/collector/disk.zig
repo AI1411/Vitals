@@ -3,10 +3,12 @@
 const std = @import("std");
 
 pub const MAX_MOUNTS = 32;
+/// Linux PATH_MAX
+const PATH_MAX = 4096;
 
 /// 1マウントポイントのディスク使用量情報
 pub const DiskStat = struct {
-    /// マウントポイントパス（固定バッファ）
+    /// マウントポイントパス（固定バッファ、表示用）
     mount_point: [256]u8 = [_]u8{0} ** 256,
     mount_point_len: usize = 0,
     /// 基本ブロックサイズ (bytes) — statvfs f_frsize
@@ -42,23 +44,51 @@ pub const DiskSnapshot = struct {
     truncated: bool = false,
 };
 
-/// /proc/mounts の1行からマウントポイントを抽出する。
+/// /proc/mounts の1行からマウントポイントを抽出する（生エスケープあり）。
 /// フォーマット: "device mountpoint fstype options dump pass"
 /// 空行・コメント行・解析失敗時は null を返す。
+/// 返値はオクタルエスケープを含む可能性があるため、使用前に decodeMountPath を適用すること。
 pub fn parseMountsLine(line: []const u8) ?[]const u8 {
     const trimmed = std.mem.trim(u8, line, " \t");
     if (trimmed.len == 0 or trimmed[0] == '#') return null;
 
     var it = std.mem.tokenizeScalar(u8, trimmed, ' ');
     _ = it.next() orelse return null; // device
-    return it.next(); // mountpoint
+    return it.next(); // mountpoint (raw, may contain \040 etc.)
+}
+
+/// /proc/mounts のオクタルエスケープをデコードして buf に書き込み、書き込んだスライスを返す。
+/// `\040` → ' ', `\011` → '\t', `\012` → '\n', `\134` → '\\' など3桁オクタルに対応。
+/// buf が短い場合は途中で切り捨てる。
+pub fn decodeMountPath(raw: []const u8, buf: []u8) []u8 {
+    var out: usize = 0;
+    var i: usize = 0;
+    while (i < raw.len and out < buf.len) {
+        if (raw[i] == '\\' and i + 3 < raw.len) {
+            if (std.fmt.parseInt(u8, raw[i + 1 .. i + 4], 8)) |byte| {
+                buf[out] = byte;
+                out += 1;
+                i += 4;
+            } else |_| {
+                buf[out] = raw[i];
+                out += 1;
+                i += 1;
+            }
+        } else {
+            buf[out] = raw[i];
+            out += 1;
+            i += 1;
+        }
+    }
+    return buf[0..out];
 }
 
 /// statvfs() を呼び出して指定マウントポイントの DiskStat を返す。
+/// mount_point はデコード済みのパス（PATH_MAX 未満）を渡す。
 pub fn statDisk(mount_point: []const u8) !DiskStat {
-    if (mount_point.len == 0 or mount_point.len >= 256) return error.InvalidPath;
+    if (mount_point.len == 0 or mount_point.len >= PATH_MAX) return error.InvalidPath;
 
-    var path_buf: [256]u8 = undefined;
+    var path_buf: [PATH_MAX]u8 = undefined;
     @memcpy(path_buf[0..mount_point.len], mount_point);
     path_buf[mount_point.len] = 0;
     const path_z: [:0]const u8 = path_buf[0..mount_point.len :0];
@@ -82,13 +112,15 @@ pub fn collect(mounts_content: []const u8) DiskSnapshot {
     var lines = std.mem.tokenizeScalar(u8, mounts_content, '\n');
 
     while (lines.next()) |line| {
-        const mp = parseMountsLine(line) orelse continue;
+        const raw_mp = parseMountsLine(line) orelse continue;
 
         if (snapshot.count >= MAX_MOUNTS) {
             snapshot.truncated = true;
             break;
         }
 
+        var decoded_buf: [PATH_MAX]u8 = undefined;
+        const mp = decodeMountPath(raw_mp, &decoded_buf);
         const stat = statDisk(mp) catch continue;
         snapshot.stats[snapshot.count] = stat;
         snapshot.count += 1;
