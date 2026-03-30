@@ -91,6 +91,24 @@ pub fn build(b: *std.Build) void {
     });
     test_step.dependOn(&b.addRunArtifact(disk_tests).step);
 
+    const network_mod = b.createModule(.{
+        .root_source_file = b.path("src/collector/network.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+
+    const network_tests = b.addTest(.{
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("tests/network_test.zig"),
+            .target = target,
+            .optimize = optimize,
+            .imports = &.{
+                .{ .name = "network", .module = network_mod },
+            },
+        }),
+    });
+    test_step.dependOn(&b.addRunArtifact(network_tests).step);
+
     const all_tests = b.addTest(.{
         .root_module = b.createModule(.{
             .root_source_file = b.path("all_tests.zig"),
