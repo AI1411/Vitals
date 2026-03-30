@@ -1,26 +1,28 @@
 # vitals
 
-Zig製の超軽量システムリソースモニタ。起動した瞬間に CPU・メモリ・ディスク・ネットワークの状況を把握できる。
+Ultra-lightweight system resource monitor written in Zig. Instantly shows CPU, memory, disk, and network status.
 
-## 特徴
+## Features
 
-- **高速起動**: < 10ms で最初の描画が完了
-- **軽量**: ツール自身が CPU 0.1% 未満、メモリ < 5MB
-- **ゼロ依存**: Linux `/proc` のみ使用、外部ライブラリなし
-- **3つの表示モード**: ワンショット、ミニ、ウォッチ
+- **Fast startup**: First render completes in < 10ms
+- **Lightweight**: < 0.1% CPU and < 5MB memory usage
+- **Zero dependencies**: Uses only Linux `/proc` and macOS system APIs
+- **3 display modes**: One-shot, mini, and watch
 
-## インストール
+## Installation
 
-### Homebrew (Linux)
+### Homebrew (macOS & Linux)
 
 ```bash
 brew tap AI1411/Vitals https://github.com/AI1411/Vitals
-brew install vitals
+brew install ai1411/vitals/vitals
 ```
 
-### ソースからビルド
+> **Note**: Use `ai1411/vitals/vitals` (not `vitals`) to avoid conflicts with an existing Homebrew cask of the same name.
 
-Zig 0.15.0 以上が必要です。
+### Build from source
+
+Requires Zig 0.15.0 or later.
 
 ```bash
 git clone https://github.com/AI1411/Vitals
@@ -28,17 +30,17 @@ cd Vitals
 zig build -Doptimize=ReleaseSafe
 ```
 
-バイナリは `zig-out/bin/vitals` に生成されます。
+The binary is generated at `zig-out/bin/vitals`.
 
 ```bash
 cp zig-out/bin/vitals ~/.local/bin/
 ```
 
-## 使い方
+## Usage
 
-### ワンショットモード (`--once`)
+### One-shot mode (`--once`)
 
-CPU・メモリ・ディスク・ネットワーク情報を一度出力して終了する。
+Print CPU, memory, disk, and network info once and exit.
 
 ```bash
 vitals --once
@@ -52,24 +54,24 @@ vitals --once
   /home  ▓▓▓▓▓▓▓▓▓▓▓▓▓▓░░░░░░░░░░░░░░░░  45%  530.0 GB free
 ```
 
-### ミニモード (`--mini`)
+### Mini mode (`--mini`)
 
-tmux ステータスバーやシェルプロンプト用の1行出力。
+Single-line output for tmux status bar or shell prompt.
 
 ```bash
 vitals --mini
 # CPU 42% | MEM 65% | DISK 72% | NET ↓12M ↑3M | LOAD 3.42
 ```
 
-**tmux.conf への組み込み例:**
+**tmux.conf integration:**
 
 ```
 set -g status-right '#(vitals --mini)'
 ```
 
-### ウォッチモード (`--watch`)
+### Watch mode (`--watch`)
 
-CPU・メモリ・ネットワークの時系列グラフをリアルタイム表示する。
+Real-time time-series graphs for CPU, memory, and network.
 
 ```bash
 vitals --watch
@@ -90,24 +92,24 @@ CPU Usage (5m)  now: 42.3%
 Memory Usage (5m)  now: 65.1%
 ...
 
-[q] 終了  [+/-] 時間範囲  [space] 一時停止  [r] リセット
+[q] quit  [+/-] time range  [space] pause  [r] reset
 ```
 
-**キーバインド:**
+**Key bindings:**
 
-| キー | 動作 |
-|------|------|
-| `q` / `Ctrl-C` | 終了 |
-| `space` | 更新を一時停止 / 再開 |
-| `r` | グラフをリセット |
-| `+` | 表示時間範囲を縮小 (ズームイン) |
-| `-` | 表示時間範囲を拡大 (ズームアウト) |
+| Key | Action |
+|-----|--------|
+| `q` / `Ctrl-C` | Quit |
+| `space` | Pause / resume updates |
+| `r` | Reset graph |
+| `+` | Zoom in (shorter time range) |
+| `-` | Zoom out (longer time range) |
 
-**時間範囲:** 1分〜60分 (デフォルト: 5分、60秒単位で変更)
+**Time range:** 1–60 minutes (default: 5 minutes, adjustable in 60-second steps)
 
-### JSON 出力 (`--json`)
+### JSON output (`--json`)
 
-スナップショットを JSON 形式で出力する。モニタリングシステムとの連携用。
+Output a snapshot in JSON format. Useful for integration with monitoring systems.
 
 ```bash
 vitals --once --json
@@ -129,7 +131,7 @@ vitals --once --json
 }
 ```
 
-### オプション一覧
+### Options
 
 ```
 Usage: vitals [options]
@@ -142,38 +144,38 @@ Options:
   --json         Output as JSON (with --once)
 ```
 
-## ヘルスカラー
+## Health colors
 
-バーの色は使用率に応じて自動的に変わる。
+Bar colors change automatically based on usage level.
 
-| 色 | 閾値 |
-|----|------|
-| 緑 | < 70% |
-| 黄 | 70〜90% |
-| 赤 | > 90% |
+| Color | Threshold |
+|-------|-----------|
+| Green | < 70% |
+| Yellow | 70–90% |
+| Red | > 90% |
 
-## 成功指標
+## Performance targets
 
-| 指標 | 目標値 |
-|------|--------|
-| 起動時間 | < 10ms |
-| CPU 使用率 | < 0.1% (1秒間隔更新時) |
-| メモリ使用量 | < 5MB RSS |
-| バイナリサイズ | < 800KB |
-| 外部依存 | ゼロ |
+| Metric | Target |
+|--------|--------|
+| Startup time | < 10ms |
+| CPU usage | < 0.1% (at 1s interval) |
+| Memory usage | < 5MB RSS |
+| Binary size | < 800KB |
+| External dependencies | Zero |
 
-## 開発環境
+## Development
 
-- **言語**: [Zig](https://ziglang.org/) 0.15.0+
-- **対応 OS**: Linux (x86_64, aarch64)
-- **依存**: なし (Linux `/proc` + システムコールのみ)
+- **Language**: [Zig](https://ziglang.org/) 0.15.0+
+- **Supported OS**: macOS (x86_64, aarch64), Linux (x86_64, aarch64)
+- **Dependencies**: None (macOS system APIs + Linux `/proc` only)
 
-### テスト実行
+### Running tests
 
 ```bash
 zig build test
 ```
 
-## ライセンス
+## License
 
 MIT
