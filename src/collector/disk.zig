@@ -1,6 +1,7 @@
-// /proc/mounts + statvfs パーサー
+// /proc/mounts + statfs (Linux) / getfsstat (macOS)
 
 const std = @import("std");
+const builtin = @import("builtin");
 
 pub const MAX_MOUNTS = 32;
 /// Linux PATH_MAX
@@ -134,6 +135,50 @@ pub fn statDisk(mount_point: []const u8) !DiskStat {
     stat.total_blocks = sv.f_blocks;
     stat.avail_blocks = sv.f_bavail;
     return stat;
+}
+
+/// macOS: getfsstat() を呼び出して DiskSnapshot を返す。
+/// MNT_LOCAL フラグを持つ実ファイルシステムのみを対象とする。
+pub fn collectMacos() DiskSnapshot {
+    const sys = @import("../utils/macos_sys.zig");
+    var snapshot = DiskSnapshot{};
+
+    // バッファサイズを固定配列で確保 (スタック上)
+    var buf: [MAX_MOUNTS]sys.MacStatfs = undefined;
+    const buf_size: i32 = @intCast(@sizeOf(sys.MacStatfs) * MAX_MOUNTS);
+    const n = sys.getfsstat(@as(?[*]sys.MacStatfs, @ptrCast(&buf)), buf_size, sys.MNT_NOWAIT);
+    if (n <= 0) return snapshot;
+
+    const count = @as(usize, @intCast(n));
+    for (0..count) |i| {
+        const sf = &buf[i];
+
+        // MNT_LOCAL ビットが立っていないものは除外 (NFS等)
+        if ((sf.f_flags & sys.MNT_LOCAL) == 0) continue;
+        // totalBytes が 0 のものは除外
+        if (sf.f_blocks == 0) continue;
+
+        if (snapshot.count >= MAX_MOUNTS) {
+            snapshot.truncated = true;
+            break;
+        }
+
+        // マウントポイント文字列長を計算
+        const mp_raw: []const u8 = std.mem.sliceTo(&sf.f_mntonname, 0);
+        const mp_len = @min(mp_raw.len, 255);
+
+        var stat = DiskStat{};
+        @memcpy(stat.mount_point[0..mp_len], mp_raw[0..mp_len]);
+        stat.mount_point_len = mp_len;
+        stat.block_size = @as(u64, sf.f_bsize);
+        stat.total_blocks = sf.f_blocks;
+        stat.avail_blocks = sf.f_bavail;
+
+        snapshot.stats[snapshot.count] = stat;
+        snapshot.count += 1;
+    }
+
+    return snapshot;
 }
 
 /// /proc/mounts の内容をパースし、各マウントポイントで statvfs() を実行して

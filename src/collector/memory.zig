@@ -1,6 +1,7 @@
-// /proc/meminfo パーサー
+// /proc/meminfo パーサー (Linux) / sysctl + host_statistics64 (macOS)
 
 const std = @import("std");
+const builtin = @import("builtin");
 
 /// /proc/meminfo から取得したメモリ情報 (単位: kB)
 pub const MemInfo = struct {
@@ -38,6 +39,55 @@ pub fn parseMemLine(line: []const u8) ?struct { key: []const u8, value: u64 } {
     const value = std.fmt.parseInt(u64, val_str, 10) catch return null;
 
     return .{ .key = key, .value = value };
+}
+
+/// macOS: sysctlbyname + host_statistics64 からメモリ情報を収集する。
+/// - hw.memsize → 物理メモリ合計 (bytes)
+/// - host_statistics64(HOST_VM_INFO64) → free / inactive / speculative ページ数
+/// - vm.swapusage → スワップ使用量
+/// available = (free + inactive + speculative) * page_size
+pub fn collectMacos() MemInfo {
+    const sys = @import("../utils/macos_sys.zig");
+    var info = MemInfo{};
+
+    // ── 物理メモリ合計 ─────────────────────────────────────────────
+    var mem_size: u64 = 0;
+    var mem_size_len: usize = @sizeOf(u64);
+    _ = sys.sysctlbyname("hw.memsize", &mem_size, &mem_size_len, null, 0);
+    info.mem_total = mem_size / 1024;
+
+    // ── ページサイズ取得 ──────────────────────────────────────────
+    var page_size: u32 = 16384;
+    var page_size_len: usize = @sizeOf(u32);
+    _ = sys.sysctlbyname("hw.pagesize", &page_size, &page_size_len, null, 0);
+
+    // ── VM 統計 (vm_statistics64) ──────────────────────────────────
+    var vm_info: [sys.HOST_VM_INFO64_COUNT]u32 = .{0} ** sys.HOST_VM_INFO64_COUNT;
+    var vm_count: sys.mach_msg_type_number_t = sys.HOST_VM_INFO64_COUNT;
+    const kr = sys.host_statistics64(
+        sys.mach_host_self(),
+        sys.HOST_VM_INFO64,
+        @as([*]u32, &vm_info),
+        &vm_count,
+    );
+    if (kr == 0) {
+        const free_pages: u64 = vm_info[sys.VM_STAT64_FREE_IDX];
+        const inactive_pages: u64 = vm_info[sys.VM_STAT64_INACTIVE_IDX];
+        const speculative_pages: u64 = vm_info[sys.VM_STAT64_SPECULATIVE_IDX];
+        const available_bytes = (free_pages + inactive_pages + speculative_pages) *
+            @as(u64, page_size);
+        info.mem_available = available_bytes / 1024;
+        info.mem_free = (free_pages * @as(u64, page_size)) / 1024;
+    }
+
+    // ── スワップ使用量 ─────────────────────────────────────────────
+    var swap: sys.XswUsage = std.mem.zeroes(sys.XswUsage);
+    var swap_len: usize = @sizeOf(sys.XswUsage);
+    _ = sys.sysctlbyname("vm.swapusage", &swap, &swap_len, null, 0);
+    info.swap_total = swap.xsu_total / 1024;
+    info.swap_free = swap.xsu_avail / 1024;
+
+    return info;
 }
 
 /// /proc/meminfo の内容をパースして MemInfo を返す。

@@ -60,7 +60,7 @@ const BAR_TABLE: [101]BarBytes = blk: {
 /// 幅は BAR_WIDTH 文字固定。filled 部分に ANSI カラーを付与する。
 pub fn render(writer: anytype, pct: f64) !void {
     const clamped = @min(@max(pct, 0.0), 100.0);
-    const idx = @min(@as(usize, @intFromFloat(clamped)), 100);
+    const idx: usize = @min(@as(usize, @intFromFloat(clamped)), @as(usize, 100));
     const n_filled = idx * BAR_WIDTH / 100;
     const bar = &BAR_TABLE[idx];
 
@@ -77,14 +77,14 @@ pub fn render(writer: anytype, pct: f64) !void {
 /// カラーなしでプログレスバーを writer に書き込む (リダイレクト先など ANSI 非対応環境向け)。
 pub fn renderPlain(writer: anytype, pct: f64) !void {
     const clamped = @min(@max(pct, 0.0), 100.0);
-    const idx = @min(@as(usize, @intFromFloat(clamped)), 100);
+    const idx: usize = @min(@as(usize, @intFromFloat(clamped)), @as(usize, 100));
     try writer.writeAll(&BAR_TABLE[idx]);
 }
 
 /// HealthStatus に基づく色でプログレスバーを writer に書き込む。
 pub fn renderWithHealth(writer: anytype, pct: f64, status: health_color.HealthStatus) !void {
     const clamped = @min(@max(pct, 0.0), 100.0);
-    const idx = @min(@as(usize, @intFromFloat(clamped)), 100);
+    const idx: usize = @min(@as(usize, @intFromFloat(clamped)), @as(usize, 100));
     const n_filled = idx * @as(usize, BAR_WIDTH) / 100;
     const bar = &BAR_TABLE[idx];
 

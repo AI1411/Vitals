@@ -1,6 +1,7 @@
-// /proc/stat パーサー
+// /proc/stat パーサー (Linux) / sysctlbyname (macOS)
 
 const std = @import("std");
+const builtin = @import("builtin");
 
 pub const MAX_CORES = 64;
 
@@ -88,6 +89,47 @@ pub fn parseSnapshot(content: []const u8) CpuSnapshot {
     }
 
     return snapshot;
+}
+
+/// macOS: sysctlbyname("kern.cp_time" / "kern.cp_times") から CpuSnapshot を収集する。
+/// CP_USER=0, CP_NICE=1, CP_SYS=2, CP_INTR=3, CP_IDLE=4 (CPUSTATES=5, sizeof(long)=8)
+pub fn collectMacos() CpuSnapshot {
+    const sys = @import("../utils/macos_sys.zig");
+    var snap = CpuSnapshot{};
+
+    // ── 全体 CPU 時間 (kern.cp_time) ─────────────────────────────────
+    var cp_time: [5]i64 = .{0} ** 5;
+    var cp_time_len: usize = @sizeOf(@TypeOf(cp_time));
+    _ = sys.sysctlbyname("kern.cp_time", &cp_time[0], &cp_time_len, null, 0);
+    snap.total = cpTimesToCpuTimes(&cp_time);
+
+    // ── コア別 CPU 時間 (kern.cp_times) ──────────────────────────────
+    var cp_times: [MAX_CORES * 5]i64 = .{0} ** (MAX_CORES * 5);
+    var cp_times_len: usize = @sizeOf(@TypeOf(cp_times));
+    _ = sys.sysctlbyname("kern.cp_times", &cp_times[0], &cp_times_len, null, 0);
+
+    const ncpus = cp_times_len / (5 * @sizeOf(i64));
+    const actual_cores = @min(ncpus, MAX_CORES);
+    snap.core_count = actual_cores;
+    if (ncpus > MAX_CORES) snap.truncated = true;
+
+    for (0..actual_cores) |i| {
+        const base = i * 5;
+        snap.cores[i] = cpTimesToCpuTimes(cp_times[base .. base + 5]);
+    }
+
+    return snap;
+}
+
+/// macOS の kern.cp_time[5] (i64 配列) を CpuTimes に変換する。
+fn cpTimesToCpuTimes(cp: []const i64) CpuTimes {
+    return CpuTimes{
+        .user = @intCast(if (cp[0] > 0) cp[0] else 0),
+        .nice = @intCast(if (cp[1] > 0) cp[1] else 0),
+        .system = @intCast(if (cp[2] > 0) cp[2] else 0),
+        .irq = @intCast(if (cp[3] > 0) cp[3] else 0),
+        .idle = @intCast(if (cp[4] > 0) cp[4] else 0),
+    };
 }
 
 /// 前回・今回の CpuTimes 差分から CPU 使用率 (0.0〜100.0) を計算する。
