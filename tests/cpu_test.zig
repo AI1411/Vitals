@@ -68,11 +68,31 @@ test "parseSnapshot: fixture を正しくパース" {
     try testing.expectEqual(@as(u64, 3100), snapshot.cores[1].user);
     try testing.expectEqual(@as(u64, 3200), snapshot.cores[2].user);
     try testing.expectEqual(@as(u64, 3045), snapshot.cores[3].user);
+    // 正常ケースでは truncated = false
+    try testing.expect(!snapshot.truncated);
+}
+
+test "parseSnapshot: MAX_CORES 超えで truncated = true" {
+    // MAX_CORES + 1 行のダミーコンテンツを生成
+    var buf: [cpu.MAX_CORES * 50 + 200]u8 = undefined;
+    var pos: usize = 0;
+    // 全体行
+    const header = "cpu  0 0 0 1000 0 0 0 0 0 0\n";
+    @memcpy(buf[pos .. pos + header.len], header);
+    pos += header.len;
+    // MAX_CORES + 1 コア行
+    for (0..cpu.MAX_CORES + 1) |i| {
+        const line = std.fmt.bufPrint(buf[pos..], "cpu{d} 0 0 0 100 0 0 0 0 0 0\n", .{i}) catch break;
+        pos += line.len;
+    }
+    const snapshot = cpu.parseSnapshot(buf[0..pos]);
+    try testing.expectEqual(cpu.MAX_CORES, snapshot.core_count);
+    try testing.expect(snapshot.truncated);
 }
 
 // --- CpuTimes ヘルパー ---
 
-test "CpuTimes.total: 全フィールドを合計" {
+test "CpuTimes.total: guest/guest_nice を除外した合計" {
     const times = cpu.CpuTimes{
         .user = 12345,
         .nice = 678,
@@ -81,9 +101,21 @@ test "CpuTimes.total: 全フィールドを合計" {
         .iowait = 901,
         .irq = 234,
         .softirq = 56,
+        // guest は user に、guest_nice は nice に内包されるため total() に含まれない
+        .guest = 100,
+        .guest_nice = 50,
     };
     const expected: u64 = 12345 + 678 + 9012 + 345678 + 901 + 234 + 56;
     try testing.expectEqual(expected, times.total());
+}
+
+test "CpuTimes.total: guest が非ゼロでも二重計上されない" {
+    // guest=200 を持つケースで使用率を計算し、二重計上がないことを確認
+    const prev = cpu.CpuTimes{ .user = 0, .idle = 0, .guest = 0 };
+    const curr = cpu.CpuTimes{ .user = 50, .idle = 50, .guest = 30 };
+    // user には guest 分が内包されているが total() では guest を除外するため
+    // total_delta = (50+50) - 0 = 100, idle_delta = 50 → 50%
+    try testing.expectApproxEqAbs(@as(f64, 50.0), cpu.calcUsage(prev, curr), 0.001);
 }
 
 test "CpuTimes.idleTotal: idle + iowait" {

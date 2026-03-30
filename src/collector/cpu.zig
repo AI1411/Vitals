@@ -18,10 +18,10 @@ pub const CpuTimes = struct {
     guest_nice: u64 = 0,
 
     /// 全フィールドの合計
+    /// guest は user に、guest_nice は nice にすでに含まれるため除外する
     pub fn total(self: CpuTimes) u64 {
         return self.user + self.nice + self.system + self.idle +
-            self.iowait + self.irq + self.softirq + self.steal +
-            self.guest + self.guest_nice;
+            self.iowait + self.irq + self.softirq + self.steal;
     }
 
     /// アイドル時間合計（idle + iowait）
@@ -35,6 +35,8 @@ pub const CpuSnapshot = struct {
     total: CpuTimes = .{},
     cores: [MAX_CORES]CpuTimes = [_]CpuTimes{.{}} ** MAX_CORES,
     core_count: usize = 0,
+    /// MAX_CORES を超えるコアが存在したとき true
+    truncated: bool = false,
 };
 
 /// /proc/stat の1行をパースして CpuTimes を返す。
@@ -77,6 +79,8 @@ pub fn parseSnapshot(content: []const u8) CpuSnapshot {
             if (snapshot.core_count < MAX_CORES) {
                 snapshot.cores[snapshot.core_count] = times;
                 snapshot.core_count += 1;
+            } else {
+                snapshot.truncated = true;
             }
         } else {
             snapshot.total = times;
