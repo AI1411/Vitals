@@ -20,8 +20,8 @@ const usage =
 ;
 
 pub fn main() !void {
-    const stdout = std.File.stdout().writer();
-    const stderr = std.File.stderr().writer();
+    const stdout = std.fs.File.stdout().deprecatedWriter();
+    const stderr = std.fs.File.stderr().deprecatedWriter();
 
     var mode: Mode = .dashboard;
     var interval_sec: u64 = 1;
