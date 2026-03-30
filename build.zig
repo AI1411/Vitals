@@ -55,11 +55,20 @@ pub fn build(b: *std.Build) void {
     });
     test_step.dependOn(&b.addRunArtifact(cpu_tests).step);
 
+    const memory_mod = b.createModule(.{
+        .root_source_file = b.path("src/collector/memory.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+
     const memory_tests = b.addTest(.{
         .root_module = b.createModule(.{
             .root_source_file = b.path("tests/memory_test.zig"),
             .target = target,
             .optimize = optimize,
+            .imports = &.{
+                .{ .name = "memory", .module = memory_mod },
+            },
         }),
     });
     test_step.dependOn(&b.addRunArtifact(memory_tests).step);
