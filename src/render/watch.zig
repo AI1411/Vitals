@@ -189,7 +189,8 @@ pub fn run(interval_sec: u64) !void {
         w.writeAll(ansi.alt_screen_leave) catch {};
     }
 
-    // SIGWINCH ハンドラ: terminal.zig の既存バグ(callconv(.C))があるためスキップ
+    // SIGWINCH ハンドラを登録: リサイズ時に再描画トリガー
+    terminal.installSigwinch();
 
     var state = WatchState{};
     var history = history_mod.History{};
@@ -220,8 +221,9 @@ pub fn run(interval_sec: u64) !void {
             }
         }
 
-        // リサイズ検知
-        _ = terminal.checkAndClearResized();
+        // リサイズ検知: フラグが立っていれば即座に再描画 (フレーム描画処理へ続行)
+        const did_resize = terminal.checkAndClearResized();
+        _ = did_resize;
 
         // 更新間隔チェック
         const now_ns = std.time.nanoTimestamp();

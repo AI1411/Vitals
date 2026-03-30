@@ -65,7 +65,7 @@ pub fn getSize() !Size {
     var ws: posix.winsize = undefined;
     const rc = posix.system.ioctl(posix.STDOUT_FILENO, posix.T.IOCGWINSZ, @intFromPtr(&ws));
     if (posix.errno(rc) != .SUCCESS) return error.IoctlFailed;
-    return .{ .rows = ws.ws_row, .cols = ws.ws_col };
+    return .{ .rows = ws.row, .cols = ws.col };
 }
 
 // --- SIGWINCH リサイズ検知 ---
@@ -87,18 +87,18 @@ pub fn checkAndClearResized() bool {
 }
 
 /// SIGWINCH シグナルハンドラ (C calling convention)。
-fn sigwinchHandler(_: c_int) callconv(.C) void {
+fn sigwinchHandler(_: c_int) callconv(.c) void {
     resized = true;
 }
 
 /// SIGWINCH ハンドラを登録する。
-pub fn installSigwinch() !void {
+pub fn installSigwinch() void {
     const sa = posix.Sigaction{
         .handler = .{ .handler = sigwinchHandler },
-        .mask = posix.empty_sigset,
+        .mask = posix.sigemptyset(),
         .flags = 0,
     };
-    try posix.sigaction(posix.SIG.WINCH, &sa, null);
+    posix.sigaction(posix.SIG.WINCH, &sa, null);
 }
 
 // --- テスト ---
