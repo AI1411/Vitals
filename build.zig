@@ -73,6 +73,24 @@ pub fn build(b: *std.Build) void {
     });
     test_step.dependOn(&b.addRunArtifact(memory_tests).step);
 
+    const disk_mod = b.createModule(.{
+        .root_source_file = b.path("src/collector/disk.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+
+    const disk_tests = b.addTest(.{
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("tests/disk_test.zig"),
+            .target = target,
+            .optimize = optimize,
+            .imports = &.{
+                .{ .name = "disk", .module = disk_mod },
+            },
+        }),
+    });
+    test_step.dependOn(&b.addRunArtifact(disk_tests).step);
+
     const all_tests = b.addTest(.{
         .root_module = b.createModule(.{
             .root_source_file = b.path("all_tests.zig"),

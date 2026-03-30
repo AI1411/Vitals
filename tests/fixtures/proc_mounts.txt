@@ -1,0 +1,7 @@
+sysfs /sys sysfs rw,nosuid,nodev,noexec,relatime 0 0
+proc /proc proc rw,nosuid,nodev,noexec,relatime 0 0
+devtmpfs /dev devtmpfs rw,nosuid,size=8192k,nr_inodes=4096,mode=755 0 0
+tmpfs /dev/shm tmpfs rw,nosuid,nodev 0 0
+/dev/sda1 / ext4 rw,relatime 0 0
+/dev/sda2 /boot ext4 rw,relatime 0 0
+tmpfs /run tmpfs rw,nosuid,nodev,mode=755 0 0
