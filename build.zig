@@ -127,6 +127,42 @@ pub fn build(b: *std.Build) void {
     });
     test_step.dependOn(&b.addRunArtifact(loadavg_tests).step);
 
+    const parser_mod = b.createModule(.{
+        .root_source_file = b.path("src/utils/parser.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+
+    const parser_tests = b.addTest(.{
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("tests/parser_test.zig"),
+            .target = target,
+            .optimize = optimize,
+            .imports = &.{
+                .{ .name = "parser", .module = parser_mod },
+            },
+        }),
+    });
+    test_step.dependOn(&b.addRunArtifact(parser_tests).step);
+
+    const size_mod = b.createModule(.{
+        .root_source_file = b.path("src/utils/size.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+
+    const size_tests = b.addTest(.{
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("tests/size_test.zig"),
+            .target = target,
+            .optimize = optimize,
+            .imports = &.{
+                .{ .name = "size", .module = size_mod },
+            },
+        }),
+    });
+    test_step.dependOn(&b.addRunArtifact(size_tests).step);
+
     const all_tests = b.addTest(.{
         .root_module = b.createModule(.{
             .root_source_file = b.path("all_tests.zig"),
