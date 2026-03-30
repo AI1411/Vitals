@@ -109,6 +109,24 @@ pub fn build(b: *std.Build) void {
     });
     test_step.dependOn(&b.addRunArtifact(network_tests).step);
 
+    const loadavg_mod = b.createModule(.{
+        .root_source_file = b.path("src/collector/loadavg.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+
+    const loadavg_tests = b.addTest(.{
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("tests/loadavg_test.zig"),
+            .target = target,
+            .optimize = optimize,
+            .imports = &.{
+                .{ .name = "loadavg", .module = loadavg_mod },
+            },
+        }),
+    });
+    test_step.dependOn(&b.addRunArtifact(loadavg_tests).step);
+
     const all_tests = b.addTest(.{
         .root_module = b.createModule(.{
             .root_source_file = b.path("all_tests.zig"),
