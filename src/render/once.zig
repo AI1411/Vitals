@@ -178,7 +178,7 @@ pub fn render(
         if (disk_idx == 0) {
             for (0..snap.net.count) |j| {
                 if (isLoopback(snap.net.ifaces[j])) continue;
-                const tp = if (j < usage.net_count) usage.net_throughput[j] else .{};
+                const tp = if (j < usage.net_count) usage.net_throughput[j] else @import("../collector/network.zig").Throughput{};
                 const rx_str = size.formatRate(tp.rx_bytes_per_sec, &buf);
                 var buf2: [32]u8 = undefined;
                 const tx_str = size.formatRate(tp.tx_bytes_per_sec, &buf2);
@@ -200,7 +200,7 @@ pub fn render(
     if (!net_printed) {
         for (0..snap.net.count) |j| {
             if (isLoopback(snap.net.ifaces[j])) continue;
-            const tp = if (j < usage.net_count) usage.net_throughput[j] else .{};
+            const tp = if (j < usage.net_count) usage.net_throughput[j] else @import("../collector/network.zig").Throughput{};
             const rx_str = size.formatRate(tp.rx_bytes_per_sec, &buf);
             var buf2: [32]u8 = undefined;
             const tx_str = size.formatRate(tp.tx_bytes_per_sec, &buf2);

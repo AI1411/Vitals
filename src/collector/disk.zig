@@ -103,7 +103,7 @@ const Statfs = extern struct {
 fn linuxStatfs(path: [:0]const u8) !Statfs {
     var buf: Statfs = undefined;
     const rc = std.os.linux.syscall2(
-        @intFromEnum(std.os.linux.SYS.statfs),
+        std.os.linux.SYS.statfs,
         @intFromPtr(path.ptr),
         @intFromPtr(&buf),
     );
