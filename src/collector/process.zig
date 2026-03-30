@@ -17,6 +17,8 @@ pub const ProcInfo = struct {
     cpu_pct: f64 = 0.0,
     /// 物理メモリ使用量 (kB)
     mem_rss_kb: u64 = 0,
+    /// DISK I/O スループット (bytes/sec, /proc/[pid]/io から取得)
+    disk_io_bps: u64 = 0,
     /// プロセス名（/proc/[pid]/comm, 最大 15 文字）
     name: [16]u8 = [_]u8{0} ** 16,
     name_len: usize = 0,
