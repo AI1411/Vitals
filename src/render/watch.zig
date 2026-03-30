@@ -181,7 +181,7 @@ pub fn run(interval_sec: u64) !void {
     try terminal.enterRaw();
     defer terminal.leaveRaw();
 
-    const w = stdout.writer();
+    const w = stdout.deprecatedWriter();
     try w.writeAll(ansi.alt_screen_enter);
     try w.writeAll(ansi.cursor_hide);
     defer {
