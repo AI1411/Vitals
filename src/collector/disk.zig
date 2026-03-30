@@ -83,7 +83,38 @@ pub fn decodeMountPath(raw: []const u8, buf: []u8) []u8 {
     return buf[0..out];
 }
 
-/// statvfs() を呼び出して指定マウントポイントの DiskStat を返す。
+/// Linux statfs 構造体 (64-bit ABI: x86_64 / aarch64)
+const Statfs = extern struct {
+    f_type: i64,
+    f_bsize: i64,
+    f_blocks: u64,
+    f_bfree: u64,
+    f_bavail: u64,
+    f_files: u64,
+    f_ffree: u64,
+    f_fsid: [2]i32,
+    f_namelen: i64,
+    f_frsize: i64,
+    f_flags: i64,
+    f_spare: [4]i64,
+};
+
+/// statfs(2) システムコールを直接呼び出す。
+fn linuxStatfs(path: [:0]const u8) !Statfs {
+    var buf: Statfs = undefined;
+    const rc = std.os.linux.syscall2(
+        std.os.linux.SYS.statfs,
+        @intFromPtr(path.ptr),
+        @intFromPtr(&buf),
+    );
+    switch (std.posix.errno(rc)) {
+        .SUCCESS => {},
+        else => |err| return std.posix.unexpectedErrno(err),
+    }
+    return buf;
+}
+
+/// statfs(2) を呼び出して指定マウントポイントの DiskStat を返す。
 /// mount_point はデコード済みのパス（PATH_MAX 未満）を渡す。
 pub fn statDisk(mount_point: []const u8) !DiskStat {
     if (mount_point.len == 0 or mount_point.len >= PATH_MAX) return error.InvalidPath;
@@ -93,13 +124,13 @@ pub fn statDisk(mount_point: []const u8) !DiskStat {
     path_buf[mount_point.len] = 0;
     const path_z: [:0]const u8 = path_buf[0..mount_point.len :0];
 
-    const sv = try std.posix.statvfs(path_z);
+    const sv = try linuxStatfs(path_z);
 
     var stat = DiskStat{};
     const copy_len = @min(mount_point.len, stat.mount_point.len);
     @memcpy(stat.mount_point[0..copy_len], mount_point[0..copy_len]);
     stat.mount_point_len = copy_len;
-    stat.block_size = sv.f_frsize;
+    stat.block_size = @as(u64, @intCast(sv.f_frsize));
     stat.total_blocks = sv.f_blocks;
     stat.avail_blocks = sv.f_bavail;
     return stat;

@@ -243,7 +243,7 @@ pub fn run(interval_sec: u64) !void {
         var fbs = std.io.fixedBufferStream(&render_buf);
         const fb_writer = fbs.writer();
 
-        const term_size = terminal.getSize() catch .{ .rows = 24, .cols = 80 };
+        const term_size = terminal.getSize() catch terminal.Size{ .rows = 24, .cols = 80 };
 
         try fb_writer.writeAll(ansi.cursor_home);
         try fb_writer.writeAll(ansi.clear_screen);

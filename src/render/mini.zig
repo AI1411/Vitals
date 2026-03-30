@@ -56,7 +56,7 @@ pub fn render(
     for (0..snap.net.count) |i| {
         const iface = snap.net.ifaces[i];
         if (std.mem.eql(u8, iface.nameSlice(), "lo")) continue;
-        const tp = if (i < usage.net_count) usage.net_throughput[i] else .{};
+        const tp = if (i < usage.net_count) usage.net_throughput[i] else network_mod.Throughput{};
         const rx_str = size.formatRateMini(tp.rx_bytes_per_sec, &buf);
         var buf2: [32]u8 = undefined;
         const tx_str = size.formatRateMini(tp.tx_bytes_per_sec, &buf2);
