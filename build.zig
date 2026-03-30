@@ -54,4 +54,13 @@ pub fn build(b: *std.Build) void {
         }),
     });
     test_step.dependOn(&b.addRunArtifact(memory_tests).step);
+
+    const all_tests = b.addTest(.{
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("all_tests.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
+    });
+    test_step.dependOn(&b.addRunArtifact(all_tests).step);
 }
