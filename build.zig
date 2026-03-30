@@ -163,6 +163,33 @@ pub fn build(b: *std.Build) void {
     });
     test_step.dependOn(&b.addRunArtifact(size_tests).step);
 
+    const proc_reader_mod = b.createModule(.{
+        .root_source_file = b.path("src/utils/proc_reader.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+
+    const process_mod = b.createModule(.{
+        .root_source_file = b.path("src/collector/process.zig"),
+        .target = target,
+        .optimize = optimize,
+        .imports = &.{
+            .{ .name = "../utils/proc_reader.zig", .module = proc_reader_mod },
+        },
+    });
+
+    const process_tests = b.addTest(.{
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("tests/process_test.zig"),
+            .target = target,
+            .optimize = optimize,
+            .imports = &.{
+                .{ .name = "process", .module = process_mod },
+            },
+        }),
+    });
+    test_step.dependOn(&b.addRunArtifact(process_tests).step);
+
     const all_tests = b.addTest(.{
         .root_module = b.createModule(.{
             .root_source_file = b.path("all_tests.zig"),
