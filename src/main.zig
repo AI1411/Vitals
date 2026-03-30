@@ -20,8 +20,8 @@ const usage =
 ;
 
 pub fn main() !void {
-    const stdout = std.io.getStdOut().writer();
-    const stderr = std.io.getStdErr().writer();
+    const stdout = std.File.stdout().writer();
+    const stderr = std.File.stderr().writer();
 
     var mode: Mode = .dashboard;
     var interval_sec: u64 = 1;
