@@ -15,9 +15,17 @@ jobs:
         include:
           - target: x86_64-linux-musl
             artifact: vitals-linux-x86_64
+            runs-on: ubuntu-latest
           - target: aarch64-linux-musl
             artifact: vitals-linux-aarch64
-    runs-on: ubuntu-latest
+            runs-on: ubuntu-latest
+          - target: x86_64-macos
+            artifact: vitals-macos-x86_64
+            runs-on: macos-latest
+          - target: aarch64-macos
+            artifact: vitals-macos-aarch64
+            runs-on: macos-latest
+    runs-on: ${{ matrix.runs-on }}
     steps:
       - uses: actions/checkout@v4
 
@@ -54,4 +62,6 @@ jobs:
           files: |
             artifacts/vitals-linux-x86_64/vitals-linux-x86_64.tar.gz
             artifacts/vitals-linux-aarch64/vitals-linux-aarch64.tar.gz
+            artifacts/vitals-macos-x86_64/vitals-macos-x86_64.tar.gz
+            artifacts/vitals-macos-aarch64/vitals-macos-aarch64.tar.gz
           generate_release_notes: true

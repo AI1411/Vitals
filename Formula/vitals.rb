@@ -1,16 +1,26 @@
 class Vitals < Formula
   desc "Ultra-lightweight system resource monitor written in Zig"
   homepage "https://github.com/AI1411/Vitals"
-  version "1.0.4"
+  version "1.0.5"
   license "MIT"
+
+  on_macos do
+    if Hardware::CPU.arm?
+      url "https://github.com/AI1411/Vitals/releases/download/v#{version}/vitals-macos-aarch64.tar.gz"
+      sha256 "PLACEHOLDER_MACOS_AARCH64_SHA256"
+    else
+      url "https://github.com/AI1411/Vitals/releases/download/v#{version}/vitals-macos-x86_64.tar.gz"
+      sha256 "PLACEHOLDER_MACOS_X86_64_SHA256"
+    end
+  end
 
   on_linux do
     if Hardware::CPU.arm?
       url "https://github.com/AI1411/Vitals/releases/download/v#{version}/vitals-linux-aarch64.tar.gz"
-      sha256 "23fe5c3161263074fdefdfe7300add658017c7ba8a53b132dfe20ec5f89ce491"
+      sha256 "PLACEHOLDER_LINUX_AARCH64_SHA256"
     else
       url "https://github.com/AI1411/Vitals/releases/download/v#{version}/vitals-linux-x86_64.tar.gz"
-      sha256 "fd8f440d446b7e53453f761dbc779926dc8ead58128283d6434499abeeaa60ec"
+      sha256 "PLACEHOLDER_LINUX_X86_64_SHA256"
     end
   end
 
