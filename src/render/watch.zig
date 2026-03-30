@@ -174,14 +174,14 @@ pub fn renderFrame(
 /// watch モードの TUI を起動する。
 /// Ctrl-C または 'q' キーで終了する。
 pub fn run(interval_sec: u64) !void {
-    const stdout = std.fs.File.stdout();
-    const stdin = std.fs.File.stdin();
+    const stdout = std.io.getStdOut();
+    const stdin = std.io.getStdIn();
 
     // ターミナル設定
     try terminal.enterRaw();
     defer terminal.leaveRaw();
 
-    const w = stdout.deprecatedWriter();
+    const w = stdout.writer();
     try w.writeAll(ansi.alt_screen_enter);
     try w.writeAll(ansi.cursor_hide);
     defer {
