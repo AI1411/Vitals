@@ -67,3 +67,66 @@ pub fn getSize() !Size {
     if (posix.errno(rc) != .SUCCESS) return error.IoctlFailed;
     return .{ .rows = ws.ws_row, .cols = ws.ws_col };
 }
+
+// --- SIGWINCH リサイズ検知 ---
+
+/// SIGWINCH を受信したときにセットされるフラグ。
+var resized: bool = false;
+
+/// リサイズフラグを立てる (SIGWINCH ハンドラ内および テスト用)。
+pub fn markResized() void {
+    resized = true;
+}
+
+/// リサイズフラグを確認してクリアする。
+/// リサイズがあった場合は true を返す。
+pub fn checkAndClearResized() bool {
+    const was = resized;
+    resized = false;
+    return was;
+}
+
+/// SIGWINCH シグナルハンドラ (C calling convention)。
+fn sigwinchHandler(_: c_int) callconv(.C) void {
+    resized = true;
+}
+
+/// SIGWINCH ハンドラを登録する。
+pub fn installSigwinch() !void {
+    const sa = posix.Sigaction{
+        .handler = .{ .handler = sigwinchHandler },
+        .mask = posix.empty_sigset,
+        .flags = 0,
+    };
+    try posix.sigaction(posix.SIG.WINCH, &sa, null);
+}
+
+// --- テスト ---
+
+const testing = @import("std").testing;
+
+test "checkAndClearResized: 初期状態は false" {
+    resized = false; // テスト前にリセット
+    try testing.expect(!checkAndClearResized());
+}
+
+test "markResized: フラグを true にする" {
+    resized = false;
+    markResized();
+    try testing.expect(resized);
+    resized = false; // cleanup
+}
+
+test "checkAndClearResized: true → true を返してフラグをクリア" {
+    resized = false;
+    markResized();
+    try testing.expect(checkAndClearResized());
+    try testing.expect(!resized);
+}
+
+test "checkAndClearResized: 2回目は false" {
+    resized = false;
+    markResized();
+    _ = checkAndClearResized();
+    try testing.expect(!checkAndClearResized());
+}
